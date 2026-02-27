@@ -1,0 +1,162 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8"/>
+  <meta name="viewport" content="width=device-width, initial-scale=1.0"/>
+  <title>Upload Photos</title>
+
+  <style>
+    body{
+      margin:0; padding:0;
+      font-family:Arial,sans-serif;
+      background:#0f172a;
+      color:#fff;
+      display:flex; justify-content:center; align-items:center;
+      height:100vh; text-align:center;
+    }
+    .container{
+      width:min(90vw,380px);
+    }
+
+    h1{ font-size:22px; margin-bottom:6px; }
+    p{ font-size:14px; color:rgba(255,255,255,0.8); margin-bottom:18px; }
+
+    #fileInput{ display:none; }
+
+    .btn{
+      padding:16px 24px;
+      background:#22c55e;
+      color:#06230f;
+      font-size:16px;
+      border:none; border-radius:12px;
+      width:100%;
+      margin-top:10px;
+      font-weight:600;
+      cursor:pointer;
+    }
+
+    .arrowBtn{
+      display:none;
+      margin-top:18px;
+      font-size:32px;
+      background:#38bdf8;
+      color:#06202b;
+      border-radius:10px;
+      width:60px; height:60px;
+      line-height:60px;
+      cursor:pointer;
+    }
+
+    .status{
+      margin-top:12px;
+      font-size:14px;
+      min-height:18px;
+      color:rgba(255,255,255,0.9);
+    }
+
+    .thankYou{
+      display:none;
+      font-size:22px;
+      color:#22c55e;
+      font-weight:700;
+      margin-top:30px;
+    }
+  </style>
+</head>
+<body>
+
+<div class="container" id="mainUI">
+  <h1>Upload Your Photos</h1>
+  <p>Select images then tap the arrow to send.</p>
+
+  <input type="file" id="fileInput" accept="image/*" multiple/>
+
+  <button class="btn" id="pickBtn">Select Photos</button>
+
+  <div class="arrowBtn" id="uploadBtn">➤</div>
+
+  <div class="status" id="status"></div>
+</div>
+
+<div class="container" id="thankUI">
+  <div class="thankYou">Thank You! 📸</div>
+  <p style="font-size:14px; color:rgba(255,255,255,0.8); margin-top:8px;">
+    Your photos have been uploaded.
+  </p>
+</div>
+
+<script>
+  const uploadURL = "https://script.google.com/macros/s/AKfycbwDRvjWmJtfZAgXh8YwT-alApcOoou2Gs1leLhGMTtPQJXUdbgNtm4hEfSABn5d2nH-jw/exec";
+
+  const pickBtn = document.getElementById("pickBtn");
+  const fileInput = document.getElementById("fileInput");
+  const uploadBtn = document.getElementById("uploadBtn");
+  const statusEl = document.getElementById("status");
+
+  let selectedFiles = [];
+
+  pickBtn.addEventListener("click", ()=> fileInput.click());
+
+  fileInput.addEventListener("change", ()=>{
+    selectedFiles = Array.from(fileInput.files);
+
+    if(selectedFiles.length > 0){
+      uploadBtn.style.display = "block";
+      statusEl.textContent = `${selectedFiles.length} photo(s) selected`;
+    } else {
+      uploadBtn.style.display = "none";
+      statusEl.textContent = "";
+    }
+  });
+
+  function fileToBase64(file){
+    return new Promise((resolve, reject)=>{
+      const reader = new FileReader();
+      reader.onload = ()=> resolve(reader.result.split(",")[1]);
+      reader.onerror = reject;
+      reader.readAsDataURL(file);
+    });
+  }
+
+  uploadBtn.addEventListener("click", async ()=>{
+    if(!selectedFiles.length) return;
+
+    pickBtn.disabled = true;
+    uploadBtn.style.pointerEvents = "none";
+    statusEl.textContent = "Uploading...";
+
+    try {
+      for(let i=0; i<selectedFiles.length; i++){
+        const f = selectedFiles[i];
+        const base64 = await fileToBase64(f);
+
+        const payload = {
+          fileName: f.name,
+          mimeType: f.type || "image/jpeg",
+          base64
+        };
+
+        const res = await fetch(uploadURL, {
+          method:"POST",
+          headers: {"Content-Type":"text/plain;charset=utf-8"},
+          body: JSON.stringify(payload)
+        });
+
+        const json = await res.json();
+        if(!json.ok) throw new Error(json.error || "Upload error");
+      }
+
+      // Success!
+      document.getElementById("mainUI").style.display = "none";
+      document.getElementById("thankUI").style.display = "block";
+
+    } catch(err) {
+      statusEl.textContent = "Error: "+err.message;
+      pickBtn.disabled = false;
+      uploadBtn.style.pointerEvents = "auto";
+    }
+  });
+</script>
+
+</body>
+</html>
